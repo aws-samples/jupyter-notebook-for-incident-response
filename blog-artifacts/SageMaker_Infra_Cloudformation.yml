@@ -1,0 +1,74 @@
+Description: "Create basic notebook instance"
+Resources:
+  BasicNotebookInstance:
+    Type: "AWS::SageMaker::NotebookInstance"
+    Properties:
+      InstanceType: "ml.t2.medium"
+      RoleArn: !GetAtt ExecutionRole.Arn
+  ExecutionRole: 
+    Type: "AWS::IAM::Role"
+    Properties: 
+      RoleName:  !Sub '${AWS::StackName}-notebook-role'
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+        - 
+          Effect: "Allow"
+          Principal: 
+            Service: 
+              - "sagemaker.amazonaws.com"
+          Action: 
+          - "sts:AssumeRole"
+      Path: "/"
+      Policies: 
+        - 
+          PolicyName: "sagemaker-notebook-policy"
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement: 
+              - Effect: "Allow"
+                Action: 
+                  - "s3:GetObject"
+                  - "s3:PutObject"
+                  - "s3:ListBucket"
+                  - "s3:GetBucketLocation"
+                Resource: '*'
+              - Effect: "Allow"
+                Action:                 
+                  - "athena:CreateNamedQuery"
+                  - "athena:GetQueryExecution"
+                  - "athena:GetQueryResults"
+                  - "athena:StartQueryExecution"
+                Resource: '*'
+              - Effect: "Allow"
+                Action:          
+                  - "cloudtrail:GetQueryResults"
+                  - "cloudtrail:ListEventDataStores"
+                  - "cloudtrail:StartQuery"
+                Resource: 'arn:aws:cloudtrail:::*'
+              - Effect: "Allow"
+                Action:  
+                  - "ec2:CreateSecurityGroup"
+                  - "ec2:CreateSnapshot"
+                  - "ec2:DescribeInstances"
+                  - "ec2:DescribeSecurityGroups"
+                  - "ec2:ModifyInstanceAttribute"
+                  - "ec2:RevokeSecurityGroupEgress"
+                  - "ec2:TerminateInstances"
+                Resource: 'arn:aws:ec2:::*'
+              - Effect: "Allow"
+                Action:
+                  - "glue:CreateDatabase"
+                  - "glue:CreateTable"
+                  - "glue:GetDatabase"
+                  - "glue:GetTable"
+                Resource: '*'
+              - Effect: "Allow"
+                Action:
+                  - "iam:PutUserPolicy"
+                  - "iam:UpdateAccessKey"
+                Resource: 'arn:aws:iam:::*'                
+Outputs:
+  BasicNotebookInstanceId:
+    Value: !Ref BasicNotebookInstance
+    Value: !GetAtt BasicNotebookInstance.NotebookInstanceName
