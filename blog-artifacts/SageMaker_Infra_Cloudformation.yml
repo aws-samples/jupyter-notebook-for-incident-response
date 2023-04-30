@@ -3,6 +3,7 @@ Resources:
   BasicNotebookInstance:
     Type: "AWS::SageMaker::NotebookInstance"
     Properties:
+      NotebookInstanceName:  !Sub '${AWS::StackName}-notebook-instance' 
       InstanceType: "ml.t2.medium"
       RoleArn: !GetAtt ExecutionRole.Arn
   ExecutionRole: 
@@ -30,44 +31,34 @@ Resources:
                 Action: 
                   - "s3:GetObject"
                   - "s3:PutObject"
+                Resource: 'arn:aws:s3:::*/*'
+              - Effect: "Allow"
+                Action:
                   - "s3:ListBucket"
                   - "s3:GetBucketLocation"
-                Resource: '*'
+                Resource: 'arn:aws:s3:::*'
               - Effect: "Allow"
                 Action:                 
                   - "athena:CreateNamedQuery"
                   - "athena:GetQueryExecution"
                   - "athena:GetQueryResults"
                   - "athena:StartQueryExecution"
-                Resource: '*'
-              - Effect: "Allow"
-                Action:          
-                  - "cloudtrail:GetQueryResults"
-                  - "cloudtrail:ListEventDataStores"
-                  - "cloudtrail:StartQuery"
-                Resource: 'arn:aws:cloudtrail:::*'
-              - Effect: "Allow"
-                Action:  
-                  - "ec2:CreateSecurityGroup"
-                  - "ec2:CreateSnapshot"
-                  - "ec2:DescribeInstances"
-                  - "ec2:DescribeSecurityGroups"
-                  - "ec2:ModifyInstanceAttribute"
-                  - "ec2:RevokeSecurityGroupEgress"
-                  - "ec2:TerminateInstances"
-                Resource: 'arn:aws:ec2:::*'
+                Resource: !Sub 'arn:aws:athena:*:${AWS::AccountId}:workgroup/*'
               - Effect: "Allow"
                 Action:
                   - "glue:CreateDatabase"
                   - "glue:CreateTable"
                   - "glue:GetDatabase"
                   - "glue:GetTable"
-                Resource: '*'
+                Resource: [ !Sub 'arn:aws:glue:*:${AWS::AccountId}:database/*',
+                            !Sub 'arn:aws:glue:*:${AWS::AccountId}:catalog',
+                          !Sub 'arn:aws:glue:*:${AWS::AccountId}:table/*/*'
+                          ]
               - Effect: "Allow"
                 Action:
                   - "iam:PutUserPolicy"
                   - "iam:UpdateAccessKey"
-                Resource: 'arn:aws:iam:::*'                
+                Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:user/*'                
 Outputs:
   BasicNotebookInstanceId:
     Value: !Ref BasicNotebookInstance
