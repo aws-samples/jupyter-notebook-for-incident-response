@@ -1,11 +1,63 @@
 Description: "Create basic notebook instance"
 Resources:
+  
+  BasicNotebookInstanceLifecycleConfig:
+    Type: "AWS::SageMaker::NotebookInstanceLifecycleConfig"
+    Properties:
+      OnCreate:
+      - Content:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+
+            set -e
+
+            sudo -u ec2-user -i <<'EOF'
+            cd /home/ec2-user/SageMaker
+            git clone https://github.com/aws-samples/jupyter-notebook-for-incident-response
+            EOF
+      OnStart:
+      - Content:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+
+            set -e
+
+            # OVERVIEW
+            # This script gets value from Notebook Instance's tag and sets it as environment
+            # variable for all process including Jupyter in SageMaker Notebook Instance
+            #
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -qq awscliv2.zip
+            sudo ./aws/install --update
+            rm -rf aws
+            rm awscliv2.zip
+
+            rm -f /home/ec2-user/anaconda3/envs/JupyterSystemEnv/bin/aws
+
+            
+
+            sudo -u ec2-user -i <<'EOF'
+
+            ENVIRONMENT=python3
+            source /home/ec2-user/anaconda3/bin/activate "$ENVIRONMENT"
+            rm  /home/ec2-user/anaconda3/envs/python3/bin/aws
+            pip install --upgrade "$PACKAGE"
+            pip install -e /home/ec2-user/SageMaker/jupyter-notebook-for-incident-response-staging/runbooks
+            source /home/ec2-user/anaconda3/bin/deactivate
+
+
+            EOF
+
+            echo "Restarting the Jupyter server.."
+            systemctl restart jupyter-server
+
   BasicNotebookInstance:
     Type: "AWS::SageMaker::NotebookInstance"
     Properties:
-      NotebookInstanceName:  !Sub '${AWS::StackName}-notebook-instance' 
       InstanceType: "ml.t2.medium"
       RoleArn: !GetAtt ExecutionRole.Arn
+      LifecycleConfigName: !GetAtt BasicNotebookInstanceLifecycleConfig.NotebookInstanceLifecycleConfigName
+
   ExecutionRole: 
     Type: "AWS::IAM::Role"
     Properties: 
