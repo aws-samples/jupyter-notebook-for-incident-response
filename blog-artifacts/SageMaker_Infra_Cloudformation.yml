@@ -42,22 +42,23 @@ Resources:
             source /home/ec2-user/anaconda3/bin/activate "$ENVIRONMENT"
             rm  /home/ec2-user/anaconda3/envs/python3/bin/aws
             pip install --upgrade "$PACKAGE"
-            pip install -e /home/ec2-user/SageMaker/jupyter-notebook-for-incident-response-staging/runbooks
+            pip install -e /home/ec2-user/SageMaker/jupyter-notebook-for-incident-response/runbooks
             source /home/ec2-user/anaconda3/bin/deactivate
 
 
             EOF
 
             echo "Restarting the Jupyter server.."
-            systemctl restart jupyter-server
+            sudo systemctl restart jupyter-server
 
   BasicNotebookInstance:
     Type: "AWS::SageMaker::NotebookInstance"
     Properties:
+      NotebookInstanceName:  !Sub '${AWS::StackName}-notebook-instance' 
       InstanceType: "ml.t2.medium"
       RoleArn: !GetAtt ExecutionRole.Arn
       LifecycleConfigName: !GetAtt BasicNotebookInstanceLifecycleConfig.NotebookInstanceLifecycleConfigName
-
+      
   ExecutionRole: 
     Type: "AWS::IAM::Role"
     Properties: 
