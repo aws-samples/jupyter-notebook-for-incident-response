@@ -5,8 +5,9 @@ Jupyter Notebook is often thought of as an application for data science and mach
 The notebooks included in this repository combine automation in the form of python code cells and documentation with Markdown. Code in a Jupyter notebook can be executed step-by-step, allowing the user to interact with AWS and non-AWS resources through API calls and data visualized with graphs and charts. The incident response plyabooks included in the Jupyter section differ from others in the repository because they depend on configurations within the account to simplify the automation. For example, having all of the organization CloudTrail logs in a specific Athena table means the same notebook can be used across accounts.
      
     
-***Detailed instructions on how to deploy CloudFormation template coming soon…***
-     
+**Coming soon:**
+ * CloudFormation template for deploying SageMaker Notebook instance instance inside of a VPC
+ * Detailed guidance on how to deploy and use the CloudFormation template
       
 ## Security
 
