@@ -4,16 +4,16 @@ Jupyter Notebook is often thought of as an application for data science and mach
 The Jupyter notebooks in this repo will help security analysts and responders query logs (such as CloudTrail, DNS logs, Security Lake logs, etc.) and automate the response to incidents using AWS API calls (such as automating the deactivation of access keys) and non-AWS API calls. Additionally, you can combine automation in the form of python code cells and documentation with Markdown.
 
 
-# How to use this repo
+## How to use this repo
 This repo includes several artifacts such as CloudFormation template and incident response playbooks in the form of Jupyter notebooks. We will walk you through how you can create an environment on AWS to interact with the Jupyter notebooks, how to use the Jupyter notebooks, and how you can build your own!
 
-## CloudFormation
+### CloudFormation
 There are several ways to interact with Jupyter notebooks. For this solution, you will host your Jupyter notebooks on a SageMaker notebook instance. We chose to use SageMaker instead of running the notebooks locally because SageMaker provides flexible compute, seamless integration with CodeCommit and GitHub, temporary credentials through AWS [Identity and Access Management (IAM)](https://aws.amazon.com/iam/) roles, and lower latency for Athena queries.
 
 You can deploy the  SageMaker notebook instance by using the AWS CloudFormation template from the [cfn-templates folder](https://github.com/aws-samples/jupyter-notebook-for-incident-response/blob/main/blog-artifacts/SageMaker_Infra_Cloudformation.yml).
 
 
-## Athena Table
+### Athena Table
 The solution uses Athena to query CloudTrail logs in this scenario. You need to create an Athena table for CloudTrail.
 
 There are two main ways of creating an Athena table for CloudTrail.
@@ -21,7 +21,7 @@ There are two main ways of creating an Athena table for CloudTrail.
  * Alternatively, you can create your Athena table for CloudTrail logs through the CloudTrail console. For instructions, see [Using the CloudTrail console to create an Athena table for CloudTrail logs](https://docs.aws.amazon.com/athena/latest/ug/cloudtrail-logs.html#create-cloudtrail-table-ct). One advantage of this approach is that it will be quicker to set up.
 
 
-## Playbooks
+### Playbooks
 
 There is a folder in this repo titled [playbooks](https://github.com/timmanik/jupyter-notebook-for-incident-response/tree/main/playbooks). It contains subfolders for different types of playbooks. Inside of each playbook folder, there are two notebooks: one for detection and one for containment.
 
@@ -33,7 +33,7 @@ Additionally, we highly encourage you to give us your feedback on this repo as w
 
 
     
-# Coming Soon
+## Coming Soon
  * CloudFormation template for deploying SageMaker Notebook instance instance inside of a VPC
  * Detailed guidance on how to deploy and use the CloudFormation template
       
