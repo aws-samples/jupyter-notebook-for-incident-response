@@ -1,0 +1,658 @@
+Parameters:
+    EnvironmentName:
+      Description: An environment name that is prefixed to resource names
+      Type: String
+    VpcCIDR:
+      Description: Please enter the IP range (CIDR notation) for this VPC
+      Type: String
+      Default: 10.0.0.0/16
+    PublicSubnet1CIDR:
+      Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+      Type: String
+      Default: 10.0.0.0/24
+    PrivateSubnet1CIDR:
+      Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+      Type: String
+      Default: 10.0.1.0/24
+    SageMakerInstanceType:
+      Type: String
+      Default: ml.t2.medium
+      Description: SageMaker notebook instance type
+    SageMakerRestrictedCIDRPreSignedURL:
+      Type: String
+      Default: 0.0.0.0/0
+      Description: IP address that can access the SageMaker pre-signed URL
+    IAMroleassumptionforSageMakerpresignedurl:
+      Type: String
+      Default: arn:aws:iam::1234:role/Admin
+      Description: IAM role to update the trust relationship to allow access to create and access SageMaker Notebook Instance's presigned URL.
+    LogArchiveAccount:
+      Type: String
+      Default: "1234"
+      Description: AWS Account where your CloudTrail logs and other security logs are stored in. If it is in the same account where you're deploying this template in, enter that account ID as well.
+  
+Resources:
+
+  athenas3outputkmskey:
+      Type: AWS::KMS::Key
+      Properties:
+        Description: KMS key for S3 bucket to store athena workgroup output.
+        EnableKeyRotation: true
+        KeyPolicy:
+          Statement:
+            - Action: kms:*
+              Effect: Allow
+              Principal:
+                AWS:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":iam::"
+                      - Ref: AWS::AccountId
+                      - :root
+              Resource: "*"
+            - Action:
+                - kms:DescribeKey
+                - kms:Encrypt
+                - kms:GenerateDataKey*
+              Effect: Allow
+              Principal:
+                AWS:
+                  - !GetAtt SageMakerNotebookRoleAnalysis.Arn
+              Resource: "*"
+          Version: "2012-10-17"
+        PendingWindowInDays: 7
+      UpdateReplacePolicy: Delete
+      DeletionPolicy: Delete
+  athenas3outputkmskeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: 
+        Fn::Join:
+          - ""
+          - - "alias/athena_s3_output_kms_key-"
+            - Ref: EnvironmentName      
+      TargetKeyId:
+        Fn::GetAtt:
+          - athenas3outputkmskey
+          - Arn
+  athenaoutputs3bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - athenas3outputkmskey
+                  - Arn
+              SSEAlgorithm: aws:kms
+      BucketName:
+        Fn::Join:
+          - ""
+          - - athena-ir-query-results-
+            - Ref: EnvironmentName
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  athenaoutputs3bucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: athenaoutputs3bucket
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - athenaoutputs3bucket
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - athenaoutputs3bucket
+                        - Arn
+                    - /*
+          - Action:
+              - s3:DeleteObject
+              - s3:GetBucketLocation
+              - s3:PutObject
+              - s3:PutObjectAcl
+            Effect: Allow
+            Principal:
+              AWS:
+                - !GetAtt SageMakerNotebookRoleAnalysis.Arn
+            Resource:
+              - Fn::GetAtt:
+                  - athenaoutputs3bucket
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - athenaoutputs3bucket
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+
+  SageMakerKMSKeyAnalysis:
+      Type: AWS::KMS::Key
+      Properties:
+        Description: KMS key for SageMaker resources.
+        EnableKeyRotation: true
+        KeyPolicy:
+          Statement:
+            - Action: kms:*
+              Effect: Allow
+              Principal:
+                AWS:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":iam::"
+                      - Ref: AWS::AccountId
+                      - :root
+              Resource: "*"
+            - Action:
+                - kms:Decrypt*
+                - kms:Describe*
+                - kms:Encrypt*
+                - kms:GenerateDataKey*
+                - kms:ReEncrypt*
+
+              Effect: Allow
+              Principal:
+                Service:
+                  Fn::Join:
+                    - ""
+                    - - logs.
+                      - Ref: AWS::Region
+                      - .amazonaws.com
+              Resource: "*"
+            - Action:
+                - kms:CreateGrant
+                - kms:Decrypt
+                - kms:DescribeKey
+                - kms:GenerateDataKey
+              Effect: Allow
+              Principal:
+                AWS:
+                  - !GetAtt SageMakerNotebookRoleAnalysis.Arn
+              Resource: "*"
+          Version: "2012-10-17"
+        PendingWindowInDays: 7
+      UpdateReplacePolicy: Delete
+      DeletionPolicy: Delete
+
+  SageMakerkmskeyAliasAnalysis:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName:
+        Fn::Join:
+          - ""
+          - - "alias/SageMaker_analysis_notebook_kms_key-"
+            - Ref: EnvironmentName
+      TargetKeyId:
+        Fn::GetAtt:
+          - SageMakerKMSKeyAnalysis
+          - Arn
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Subnet (AZ1)
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet (AZ1)
+
+  NatGateway1EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway1EIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Routes
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Routes (AZ1)
+
+  DefaultPrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref PrivateSubnet1
+
+  SageMakerNotebookRoleAnalysis:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+            - Action: sts:AssumeRole
+              Effect: Allow
+              Principal:
+                Service: sagemaker.amazonaws.com
+          Version: "2012-10-17"
+        RoleName:
+          Fn::Join:
+                  - ""
+                  - - "SageMaker-notebook-analysis-role-"
+                    - Ref: EnvironmentName
+
+  SageMakerNotebookManagedAnalysisPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Managed policy associated to the SageMaker Notebook instance for Analysis.
+      ManagedPolicyName:
+                Fn::Join:
+                - ""
+                - - "SageMaker-notebook-analysis-policy-"
+                  - Ref: EnvironmentName
+      
+      Path: /
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: EnvironmentName
+                  - :log-group:/aws/SageMaker/notebook/ir:*
+            Sid: CloudWatchLogGroupAllow
+          - Action: s3:ListBucket
+            Effect: Allow
+            Resource: "*"
+            Sid: S3Read
+          - Action:
+              - s3:AbortMultipartUpload
+              - s3:DeleteObject
+              - s3:GetBucketAcl
+              - s3:GetBucketLocation
+              - s3:ListBucket
+              - s3:PutObject
+              - s3:PutObjectAcl
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - athenaoutputs3bucket
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - athenaoutputs3bucket
+                        - Arn
+                    - /*
+            Sid: S3Allow
+          - Action:
+              - s3:GetObject
+            Effect: Allow
+            Resource: "*"
+            Sid: S3GetAllow            
+          - Action:
+              - athena:Get*
+              - athena:List*
+              - athena:StartQueryExecution
+              - athena:StartSession
+              - athena:StopQueryExecution
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:athena:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :datacatalog/*
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:athena:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :workgroup/*
+            Sid: AthenaAllow
+          - Action:
+              - glue:BatchGetPartition
+              - glue:CreateDatabase
+              - glue:GetDatabase
+              - glue:GetDatabases
+              - glue:GetPartition
+              - glue:GetPartitions
+              - glue:GetTable
+              - glue:GetTables
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:glue:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :catalog
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:glue:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :database/*
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:glue:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :table/*/*
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:glue:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: LogArchiveAccount
+                    - :catalog
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:glue:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: LogArchiveAccount
+                    - :database/*
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:glue:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: LogArchiveAccount
+                    - :table/*/*
+            Sid: GlueAllow
+          - Action: lakeformation:GetDataAccess
+            Effect: Allow
+            Resource: "*"
+            Sid: LakeFormationAllow
+          - Action: iam:PassRole
+            Condition:
+              StringLike:
+                iam:PassedToService:
+                  - glue.amazonaws.com
+                  - sagemaker.amazonaws.com
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SageMakerNotebookRoleAnalysis
+                - Arn
+            Sid: IAMPassRoleService
+          - Action:
+              - kms:CreateGrant
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey
+              - kms:ReEncrypt*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - athenas3outputkmskey
+                  - Arn
+              - Fn::GetAtt:
+                  - SageMakerKMSKeyAnalysis
+                  - Arn
+            Sid: KMSEncrypt
+        Version: "2012-10-17"
+      Roles:
+        - Ref: SageMakerNotebookRoleAnalysis
+
+
+  SageMakerNotebookInstanceConsolePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Managed policy associated to the AWS console role to access SageMaker Notebook Instance presigned URL.
+      ManagedPolicyName: sagemaker-notebook-instance-access-policy
+      Path: /
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sagemaker:CreatePresignedNotebookInstanceUrl
+              - sagemaker:DescribeNotebookInstance 
+              - sagemaker:StartNotebookInstance
+              - sagemaker:StopNotebookInstance            
+            Condition:
+              IpAddress:
+                aws:SourceIp:
+                  - Ref: SageMakerRestrictedCIDRPreSignedURL
+            Effect: Allow
+            Resource:
+              - Ref: SageMakerNotebookInstance
+            Sid: SMNotebookCreatePresignedURLAllow
+        Version: "2012-10-17"
+      Roles:
+        - Ref: SageMakerConsolePreSignedUrlRole
+
+            
+
+  SageMakerConsolePreSignedUrlRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Ref: IAMroleassumptionforSageMakerpresignedurl
+        Version: "2012-10-17"
+      RoleName:
+        Fn::Join:
+          - ""
+          - - "SageMaker-console-presigned-url-role-"
+            - Ref: EnvironmentName
+
+  SageMakerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SageMaker SG
+      GroupName: SageMaker_sg
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow HTTPS Outbound for egress-only internet access
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+        - CidrIp: 0.0.0.0/0
+          Description: Allow HTTP Outbound for egress-only internet access
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::GetAtt:
+              - VPC
+              - CidrBlock
+          Description:
+            Fn::Join:
+              - ""
+              - - "from "
+                - Fn::GetAtt:
+                    - VPC
+                    - CidrBlock
+                - :443
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      VpcId:
+        Ref: VPC
+
+  IRNotebookInstanceLifecycleConfig:
+    Type: "AWS::SageMaker::NotebookInstanceLifecycleConfig"
+    Properties:
+      OnCreate:
+      - Content:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+
+            set -e
+
+            sudo -u ec2-user -i <<'EOF'
+            cd /home/ec2-user/SageMaker
+            git clone https://github.com/aws-samples/jupyter-notebook-for-incident-response
+            EOF
+      OnStart:
+      - Content:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+
+            set -e
+
+            # OVERVIEW
+            # This script gets value from Notebook Instance's tag and sets it as environment
+            # variable for all process including Jupyter in SageMaker Notebook Instance
+            #
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -qq awscliv2.zip
+            sudo ./aws/install --update
+            rm -rf aws
+            rm awscliv2.zip
+
+            rm -f /home/ec2-user/anaconda3/envs/JupyterSystemEnv/bin/aws
+
+            
+
+            sudo -u ec2-user -i <<'EOF'
+
+            ENVIRONMENT=python3
+            source /home/ec2-user/anaconda3/bin/activate "$ENVIRONMENT"
+            rm  /home/ec2-user/anaconda3/envs/python3/bin/aws
+            pip install --upgrade "$PACKAGE"
+            pip install -e /home/ec2-user/SageMaker/jupyter-notebook-for-incident-response/runbooks
+            source /home/ec2-user/anaconda3/bin/deactivate
+
+
+            EOF
+
+            echo "Restarting the Jupyter server.."
+            sudo systemctl restart jupyter-server
+            
+  SageMakerNotebookInstance:
+      Type: AWS::SageMaker::NotebookInstance
+      Properties:
+        InstanceType: !Ref SageMakerInstanceType
+        RoleArn: !GetAtt SageMakerNotebookRoleAnalysis.Arn
+        LifecycleConfigName: !GetAtt IRNotebookInstanceLifecycleConfig.NotebookInstanceLifecycleConfigName
+        SubnetId: !Ref PrivateSubnet1
+        KmsKeyId: !GetAtt SageMakerKMSKeyAnalysis.Arn
+        NotebookInstanceName:
+          Fn::Join:
+            - ""
+            - - "jupyter-ir-analysis-"
+              - Ref: EnvironmentName          
+        SecurityGroupIds:
+          - Fn::GetAtt:
+              - SageMakerSG
+              - GroupId  
+
+Outputs:
+  athenaoutputs3bucket:
+    Description: URI of S3 bucket for storing Athena query results
+    Value: !Sub "s3://${athenaoutputs3bucket}"
+  SageMakerNotebookInstanceRole:
+    Description: ARN of IAM role assumed by SageMaker Notebook instance.
+    Value: !GetAtt SageMakerNotebookRoleAnalysis.Arn
