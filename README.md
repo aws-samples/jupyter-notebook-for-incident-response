@@ -34,7 +34,6 @@ Additionally, we highly encourage you to give us your feedback on this repo as w
 
     
 ## Coming Soon
- * CloudFormation template for deploying SageMaker Notebook instance instance inside of a VPC
  * Detailed guidance on how to deploy and use the CloudFormation template
       
 ## Security
