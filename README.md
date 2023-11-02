@@ -10,7 +10,7 @@ This repo includes several artifacts such as CloudFormation template and inciden
 ### CloudFormation
 There are several ways to interact with Jupyter notebooks. For this solution, you will host your Jupyter notebooks on a SageMaker notebook instance. We chose to use SageMaker instead of running the notebooks locally because SageMaker provides flexible compute, seamless integration with CodeCommit and GitHub, temporary credentials through AWS [Identity and Access Management (IAM)](https://aws.amazon.com/iam/) roles, and lower latency for Athena queries.
 
-You can deploy the  SageMaker notebook instance by using the AWS CloudFormation template from the [cfn-templates folder](https://github.com/aws-samples/jupyter-notebook-for-incident-response/blob/main/blog-artifacts/SageMaker_Infra_Cloudformation.yml).
+You can deploy the  SageMaker notebook instance by using the AWS CloudFormation template from the [cfn-templates folder](https://github.com/aws-samples/jupyter-notebook-for-incident-response/tree/main/cfn-templates).
 
 
 ### Athena Table
@@ -23,11 +23,11 @@ There are two main ways of creating an Athena table for CloudTrail.
 
 ### Playbooks
 
-There is a folder in this repo titled [playbooks](https://github.com/timmanik/jupyter-notebook-for-incident-response/tree/main/playbooks). It contains subfolders for different types of playbooks. Inside of each playbook folder, there are two notebooks: one for detection and one for containment.
+There is a folder in this repo titled [playbooks](https://github.com/aws-samples/jupyter-notebook-for-incident-response/tree/main/Playbooks). It contains subfolders for different types of playbooks. Inside of each playbook folder, there are two notebooks: one for detection and one for containment.
 
 We recommend that you clone this repo into the environment you use to work with Jupyter notebooks - either your local machine or your SageMaker Notebook Instance.
 
-Inside of the [playbooks](https://github.com/aws-samples/jupyter-notebook-for-incident-response/tree/main/playbooks) folder, there are detailed instructions on how to use the notebooks provided.
+Inside of the [playbooks](https://github.com/aws-samples/jupyter-notebook-for-incident-response/tree/main/Playbooks) folder, there are detailed instructions on how to use the notebooks provided.
 
 Additionally, we highly encourage you to give us your feedback on this repo as well as suggestions on things that you want to see next.
 
