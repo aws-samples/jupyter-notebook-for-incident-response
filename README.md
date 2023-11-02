@@ -27,7 +27,7 @@ There is a folder in this repo titled [playbooks](https://github.com/timmanik/ju
 
 We recommend that you clone this repo into the environment you use to work with Jupyter notebooks - either your local machine or your SageMaker Notebook Instance.
 
-Inside of the [playbooks](https://github.com/timmanik/jupyter-notebook-for-incident-response/tree/main/playbooks) folder, there are detailed instructions on how to use the notebooks provided.
+Inside of the [playbooks](https://github.com/aws-samples/jupyter-notebook-for-incident-response/tree/main/playbooks) folder, there are detailed instructions on how to use the notebooks provided.
 
 Additionally, we highly encourage you to give us your feedback on this repo as well as suggestions on things that you want to see next.
 
