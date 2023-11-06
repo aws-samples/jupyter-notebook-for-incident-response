@@ -17,7 +17,7 @@ You can deploy the  SageMaker notebook instance by using the AWS CloudFormation 
 The solution uses Athena to query CloudTrail logs in this scenario. You need to create an Athena table for CloudTrail.
 
 There are two main ways of creating an Athena table for CloudTrail.
- * First is through the [AWS Security Analytics Bootstrap](https://aws.amazon.com/blogs/opensource/introducing-aws-security-analytics-bootstrap/). We highly recommend using this bootstrap because you can perform security investigations on different types of AWS service logs. To get the CloudFormation template for the bootstrap, see [Athena_infra_setup.yml](https://github.com/awslabs/aws-security-analytics-bootstrap/blob/main/AWSSecurityAnalyticsBootstrap/cfn/Athena_infra_setup.yml).
+ * First is through the [AWS Security Analytics Bootstrap](https://aws.amazon.com/blogs/opensource/introducing-aws-security-analytics-bootstrap/). We highly recommend using this bootstrap because you can perform security investigations on different types of AWS service logs. To get the CloudFormation template for the bootstrap, see [Athena_infra_setup.yml](https://github.com/awslabs/aws-security-analytics-bootstrap/blob/main/AWSSecurityAnalyticsBootstrap/cfn/Athena_infra_setup.yml). Here is additional guidance on deploying the bootstrap: [Video guide](https://youtu.be/Ip9hPg-BdM4?t=797).
  * Alternatively, you can create your Athena table for CloudTrail logs through the CloudTrail console. For instructions, see [Using the CloudTrail console to create an Athena table for CloudTrail logs](https://docs.aws.amazon.com/athena/latest/ug/cloudtrail-logs.html#create-cloudtrail-table-ct). One advantage of this approach is that it will be quicker to set up.
 
 
@@ -32,9 +32,6 @@ Inside of the [playbooks](https://github.com/aws-samples/jupyter-notebook-for-in
 Additionally, we highly encourage you to give us your feedback on this repo as well as suggestions on things that you want to see next.
 
 
-    
-## Coming Soon
- * Detailed guidance on how to deploy and use the CloudFormation template
       
 ## Security
 
